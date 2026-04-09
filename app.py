@@ -161,6 +161,23 @@ def get_ai_response(system_prompt, user_content):
     except Exception as e:
         return f"Error: {e}"
 
+def send_pushplus_notification(title, content):
+    """通过 PushPlus 发送微信通知"""
+    if not PUSHPLUS_TOKEN:
+        return
+    
+    url = "http://www.pushplus.plus/send"
+    data = {
+        "token": PUSHPLUS_TOKEN,
+        "title": title,
+        "content": content,
+        "template": "markdown"
+    }
+    try:
+        requests.post(url, json=data, timeout=10)
+    except Exception:
+        pass  # 推送失败不影响主业务
+
 def run_ai_processing(username, new_info, results_dict):
     """异步任务"""
     old_profile = read_md_file(username, "user_profile.md")
@@ -185,6 +202,22 @@ def run_ai_processing(username, new_info, results_dict):
         results_dict["profile"] = profile_result
         results_dict["plan"] = plan_result
         results_dict["done"] = True
+        
+        # 发送微信推送
+        push_content = f"""# 👤 客户档案：{username}
+{new_info}
+
+---
+
+# 📊 AI 深度评估报告
+{profile_result}
+
+---
+
+# 📋 私人定制健身方案
+{plan_result}
+"""
+        send_pushplus_notification(f"[健身助手] 新客户方案：{username}", push_content)
 
 # ==========================================
 # 6. 渲染逻辑 (按顺序直接在顶层运行)

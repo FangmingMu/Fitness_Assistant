@@ -3,6 +3,7 @@ import os
 import time
 import random
 import threading
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -35,6 +36,7 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 MODEL_ID = os.getenv("MODEL_ID")
+PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN")
 
 DATA_DIR = "data/users"
 if not os.path.exists(DATA_DIR):
@@ -107,6 +109,32 @@ st.markdown("""
         color: #334155 !important;
         margin-bottom: 6px !important;
     }
+    
+    /* 预览模式遮罩效果 */
+    .preview-overlay {
+        position: relative;
+        max-height: 350px;
+        overflow: hidden;
+    }
+    .preview-overlay::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100px;
+        background: linear-gradient(transparent, white);
+        pointer-events: none;
+    }
+    .unlock-box {
+        text-align: center;
+        padding: 2rem;
+        border: 2px dashed #4CAF50;
+        border-radius: 20px;
+        margin-top: 1rem;
+        background: #fdfdfd;
+    }
+    
     [data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e2e8f0;
@@ -176,7 +204,7 @@ def send_pushplus_notification(title, content):
     try:
         requests.post(url, json=data, timeout=10)
     except Exception:
-        pass  # 推送失败不影响主业务
+        pass 
 
 def run_ai_processing(username, new_info, results_dict):
     """异步任务"""
@@ -203,27 +231,13 @@ def run_ai_processing(username, new_info, results_dict):
         results_dict["plan"] = plan_result
         results_dict["done"] = True
         
-        # 发送微信推送
-        push_content = f"""# 👤 客户档案：{username}
-{new_info}
-
----
-
-# 📊 AI 深度评估报告
-{profile_result}
-
----
-
-# 📋 私人定制健身方案
-{plan_result}
-"""
-        send_pushplus_notification(f"[健身助手] 新客户方案：{username}", push_content)
+        push_content = f"# 👤 客户档案：{username}\n{new_info}\n\n---\n# 📊 评估报告\n{profile_result}\n\n---\n# 📋 健身方案\n{plan_result}"
+        send_pushplus_notification(f"[健身助手] 新方案：{username}", push_content)
 
 # ==========================================
-# 6. 渲染逻辑 (按顺序直接在顶层运行)
+# 6. 渲染逻辑
 # ==========================================
 
-# --- 侧边栏 ---
 with st.sidebar:
     st.header("👤 客户中心")
     users = get_existing_users()
@@ -241,14 +255,12 @@ with st.sidebar:
                     st.session_state.results = {"profile": p, "plan": pl, "done": True}
                     st.session_state.page = "result"
                     st.rerun()
-                else:
-                    st.warning("暂无方案")
+                else: st.warning("暂无方案")
         with c2:
             if st.button("📝 修改信息"):
                 st.session_state.page = "form"
                 st.rerun()
-    else:
-        st.info("暂无记录")
+    else: st.info("暂无记录")
     
     st.divider()
     if st.button("➕ 新建客户"):
@@ -257,7 +269,6 @@ with st.sidebar:
         st.session_state.results = {}
         st.rerun()
 
-# --- 主页面路由 ---
 if st.session_state.page == "form":
     st.title("💪 AI 一对一健身助手")
     st.markdown("### 📝 录入/更新客户档案")
@@ -274,7 +285,7 @@ if st.session_state.page == "form":
             duration = st.text_input("9. 每次时长")
             equipment = st.selectbox("7. 环境", ["商业健身房", "宿舍/徒手", "有小器械", "户外"])
         core_goal = st.text_area("4. 核心诉求")
-        injuries = st.text_area("6. 伤病情况")
+        injuries = st.text_area("6. 身体伤病情况")
         submitted = st.form_submit_button("🔥 开始定制")
 
     if submitted:
@@ -289,13 +300,11 @@ elif st.session_state.page == "loading":
     st.title(f"🏃 正在为 {st.session_state.current_user} 制定方案...")
     bar = st.progress(0)
     tip_area = st.empty()
-    
     if "ai_thread" not in st.session_state or not st.session_state.ai_thread.is_alive():
         st.session_state.results = {"done": False}
         thread = threading.Thread(target=run_ai_processing, args=(st.session_state.current_user, st.session_state.user_data["info"], st.session_state.results))
         st.session_state.ai_thread = thread
         thread.start()
-
     start = time.time()
     while not st.session_state.results.get("done"):
         elapsed = time.time() - start
@@ -305,8 +314,6 @@ elif st.session_state.page == "loading":
             st.error(st.session_state.results["error"])
             break
         time.sleep(2)
-        if st.session_state.results.get("done"): break
-
     if st.session_state.results.get("done"):
         bar.progress(100)
         time.sleep(0.5)
@@ -315,9 +322,39 @@ elif st.session_state.page == "loading":
 
 elif st.session_state.page == "result":
     st.title(f"🎯 {st.session_state.current_user} 的定制方案")
-    t1, t2 = st.tabs(["📊 评估报告", "📋 训练计划"])
-    with t1: st.markdown(st.session_state.results.get("profile", ""))
-    with t2: st.markdown(st.session_state.results.get("plan", ""))
+    
+    t1, t2 = st.tabs(["📊 评估报告 (预览)", "📋 训练计划 (预览)"])
+    
+    def get_preview(text):
+        if not text: return ""
+        return text[:len(text)//3] + "\n\n..."
+
+    with t1:
+        st.markdown('<div class="preview-overlay">', unsafe_allow_html=True)
+        st.markdown(get_preview(st.session_state.results.get("profile", "")))
+        st.markdown('</div>', unsafe_allow_html=True)
+    with t2:
+        st.markdown('<div class="preview-overlay">', unsafe_allow_html=True)
+        st.markdown(get_preview(st.session_state.results.get("plan", "")))
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div class="unlock-box">
+            <h3>🔒 解锁完整版深度方案</h3>
+            <p>基于您的身体数据，AI 已为您生成了总计约 {len(st.session_state.results.get("plan","")) + len(st.session_state.results.get("profile",""))} 字的专业方案。</p>
+            <p>为确保您正确执行并获得一对一指导，请扫描下方二维码联系教练。</p>
+            <p style="color: #4CAF50; font-weight: bold;">添加时请备注：健身助手 - {st.session_state.current_user}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c2:
+        qr_path = "ba609a72a454ab2db3299c3208a71a8b.jpg"
+        if os.path.exists(qr_path):
+            st.image(qr_path, caption="扫码添加教练微信", use_container_width=True)
+        else:
+            st.error("二维码图片未找到，请检查路径。")
+
     if st.button("⬅️ 返回修改"):
         st.session_state.page = "form"
         st.rerun()

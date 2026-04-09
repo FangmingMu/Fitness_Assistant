@@ -16,15 +16,15 @@
 -   **📈 商业化预览模式**：
     -   **1/3 预览机制**：网页端仅展示报告的前 1/3 内容，并配合渐变模糊效果。
     -   **解锁引导**：自动展示二维码，引导用户添加教练微信以获取 100% 完整版详尽文档。
--   **📱 管理员实时触达**：
-    -   **PushPlus 集成**：新方案生成后，系统会自动将全套方案（100% 完整版）推送到管理员绑定的微信公众号。
+-   **📧 管理员邮件触达**：
+    -   **PushPlus 集成**：新方案生成后，系统会自动将全套方案（100% 完整版）通过 **邮件通道** 推送到管理员绑定的邮箱。
 -   **🎨 现代圆润 UI**：极简、美观的圆角视觉风格，优化了输入框聚焦效果与交互反馈。
 
 ## 🛠️ 技术栈
 
 -   **Frontend/Backend**: [Streamlit](https://streamlit.io/) (Python 全栈)
 -   **AI Engine**: Qwen 3.5 27B (OpenAI 兼容接口)
--   **Notification**: PushPlus (微信实时推送)
+-   **Notification**: PushPlus (邮件实时推送)
 -   **Data Storage**: 本地隔离 Markdown 文件
 -   **Concurrency**: Python `threading`
 
@@ -45,7 +45,7 @@ PUSHPLUS_TOKEN=您的PushPlus密钥
 ```
 
 ### 3. 连通性测试 (可选)
-验证微信推送功能：
+验证邮件推送功能：
 ```powershell
 python test_push.py
 ```
@@ -60,7 +60,7 @@ streamlit run app.py
 ```text
 Fitness Assistant/
 ├── app.py              # 主程序逻辑
-├── test_push.py        # 微信推送连通性测试
+├── test_push.py        # 微信/邮件推送连通性测试脚本
 ├── question.md         # 整理后的信息采集模板
 ├── requirements.txt    # 项目依赖
 ├── README.md           # 本文件

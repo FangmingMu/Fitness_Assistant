@@ -199,7 +199,8 @@ def send_pushplus_notification(title, content):
         "token": PUSHPLUS_TOKEN,
         "title": title,
         "content": content,
-        "template": "markdown"
+        "template": "markdown",
+        "channel": "mail"  # 切换为邮件通道
     }
     try:
         requests.post(url, json=data, timeout=10)

@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.streamlit/
+user_profile.md
+fitness_plan.md
+data/

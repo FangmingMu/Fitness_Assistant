@@ -351,7 +351,7 @@ elif st.session_state.page == "result":
     with c2:
         qr_path = "ba609a72a454ab2db3299c3208a71a8b.jpg"
         if os.path.exists(qr_path):
-            st.image(qr_path, caption="扫码添加教练微信", use_container_width=True)
+            st.image(qr_path, caption="扫码添加教练微信", width="stretch")
         else:
             st.error("二维码图片未找到，请检查路径。")
 
